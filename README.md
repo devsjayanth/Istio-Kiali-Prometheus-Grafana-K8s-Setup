@@ -88,7 +88,8 @@ kubectl get sc
 * If you have none (common in bare-metal/local clusters), you must install a storage provisioner. For a quick local fix, install the local-path-provisioner:
 ```
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.26/deploy/local-path-storage.yaml
-
+```
+```
 #Verify
 kubectl get sc
 ```
