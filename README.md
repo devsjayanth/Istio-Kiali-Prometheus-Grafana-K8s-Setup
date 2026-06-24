@@ -141,8 +141,11 @@ kubectl get svc -n monitoring | grep -E 'grafana|prometheus'
 #### 2. Grafana (Metrics Dashboards)
 - **NodePort URL:** `http://<NODE-IP>:<NODE-PORT>` (Default port: 80)
 - **LoadBalancer URL:** `http://<EXTERNAL-IP>`
-- **User:** `admin` | **Password:** `prom-operator`
-
+- **User:** `admin`
+Get the password:
+```
+kubectl get secret -n monitoring monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+```
 #### 3. Prometheus (Raw Metrics)
 - **NodePort URL:** `http://<NODE-IP>:<NODE-PORT>` (Default port: 9090)
 - **LoadBalancer URL:** `http://<EXTERNAL-IP>:9090`
