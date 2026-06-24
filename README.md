@@ -3,15 +3,16 @@ Here is the final, complete, and corrected guide, including the missing Helm ins
 
 ### Phase 1: Install CLI Tools
 ```bash
-# 1. Install istioctl
+# 1. Install Helm
+export VERIFY_CHECKSUM=false
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+helm version
+
+# 2. Install istioctl
 curl -L https://istio.io/downloadIstio | sh -
 cd istio-*
 export PATH=$PWD/bin:$PATH
 # (Add 'export PATH=$PWD/bin:$PATH' to your ~/.bashrc or ~/.zshrc to persist)
-
-# 2. Install Helm
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-helm version # Verify installation
 ```
 
 ### Phase 2: Create Namespaces
