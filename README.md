@@ -79,7 +79,8 @@ helm repo update
 helm install kiali-server kiali/kiali-server -n istio-system \
   --set auth.strategy=anonymous \
   --set external_services.prometheus.url=http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090 \
-  --set external_services.grafana.external_url=http://monitoring-grafana.monitoring.svc:80
+  --set external_services.grafana.in_cluster_url=http://monitoring-grafana.monitoring.svc:80 \
+  --set external_services.grafana.url=http://monitoring-grafana.monitoring.svc:80
 ```
 ```
 # Verify Kiali is running
