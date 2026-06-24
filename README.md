@@ -114,24 +114,27 @@ First, expose the services by patching them. Choose **either** NodePort (for loc
 
 **Patch Commands:**
 #### Option A: Expose via NodePort
-```
+```bash
 kubectl patch svc -n istio-system kiali -p '{"spec": {"type": "NodePort"}}'
 kubectl patch svc -n monitoring monitoring-grafana -p '{"spec": {"type": "NodePort"}}'
 kubectl patch svc -n monitoring monitoring-kube-prometheus-prometheus -p '{"spec": {"type": "NodePort"}}'
+kubectl patch svc -n monitoring monitoring-kube-prometheus-alertmanager -p '{"spec": {"type": "NodePort"}}'
 ```
+
 #### Option B: Expose via LoadBalancer
-```
+```bash
 kubectl patch svc -n istio-system kiali -p '{"spec": {"type": "LoadBalancer"}}'
 kubectl patch svc -n monitoring monitoring-grafana -p '{"spec": {"type": "LoadBalancer"}}'
 kubectl patch svc -n monitoring monitoring-kube-prometheus-prometheus -p '{"spec": {"type": "LoadBalancer"}}'
+kubectl patch svc -n monitoring monitoring-kube-prometheus-alertmanager -p '{"spec": {"type": "LoadBalancer"}}'
 ```
 
 **Retrieve IPs and Ports:**
 ```bash
 kubectl get svc -n istio-system | grep -E 'kiali'
 ```
-```
-kubectl get svc -n monitoring | grep -E 'grafana|prometheus'
+```bash
+kubectl get svc -n monitoring | grep -E 'grafana|prometheus|alertmanager'
 ```
 
 #### 1. Kiali (Service Mesh UI)
@@ -143,12 +146,18 @@ kubectl get svc -n monitoring | grep -E 'grafana|prometheus'
 - **LoadBalancer URL:** `http://<EXTERNAL-IP>`
 - **User:** `admin`
 Get the password:
-```
+```bash
 kubectl get secret -n monitoring monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
 ```
+
 #### 3. Prometheus (Raw Metrics)
 - **NodePort URL:** `http://<NODE-IP>:<NODE-PORT>` (Default port: 9090)
 - **LoadBalancer URL:** `http://<EXTERNAL-IP>:9090`
+- **Credentials:** None (Open)
+
+#### 4. Alertmanager (Alert Management UI)
+- **NodePort URL:** `http://<NODE-IP>:<NODE-PORT>` (Default port: 9093)
+- **LoadBalancer URL:** `http://<EXTERNAL-IP>:9093`
 - **Credentials:** None (Open)
 
 ---
@@ -167,7 +176,7 @@ kubectl get secret -n monitoring monitoring-grafana -o jsonpath="{.data.admin-pa
 1. **Prometheus** → **Status → Targets** → Ensure `istiod` and `istio-proxies` are **UP**.
 2. **Kiali** → **Graph** → Select `default` namespace → See mesh topology.
 3. **Grafana** → Check imported Istio dashboards show traffic data.
-
+4. **Alertmanager** → **Alerts** tab → Verify active alerts and silences are displaying correctly.
 ---
 # Uninstallation
 Cleanup guide to completely uninstall and remove all traces of the setup. 
