@@ -108,34 +108,52 @@ EOF
 ```
 ---
 
-### Phase 7: Access URLs, Paths, and Credentials
-*Run these in separate terminal windows to keep the tunnels open.*
+### Phase 7: Expose Services & Access URLs
+
+First, expose the services by patching them. Choose **either** NodePort (for local/bare-metal clusters) **or** LoadBalancer (for cloud environments).
+
+**Patch Commands:**
+#### Option A: Expose via NodePort
+```
+kubectl patch svc -n istio-system kiali -p '{"spec": {"type": "NodePort"}}'
+kubectl patch svc -n monitoring monitoring-grafana -p '{"spec": {"type": "NodePort"}}'
+kubectl patch svc -n monitoring monitoring-kube-prometheus-prometheus -p '{"spec": {"type": "NodePort"}}'
+```
+#### Option B: Expose via LoadBalancer
+```
+kubectl patch svc -n istio-system kiali -p '{"spec": {"type": "LoadBalancer"}}'
+kubectl patch svc -n monitoring monitoring-grafana -p '{"spec": {"type": "LoadBalancer"}}'
+kubectl patch svc -n monitoring monitoring-kube-prometheus-prometheus -p '{"spec": {"type": "LoadBalancer"}}'
+```
+
+**Retrieve IPs and Ports:**
+```bash
+kubectl get svc -n istio-system | grep -E 'kiali'
+```
+```
+kubectl get svc -n monitoring | grep -E 'grafana|prometheus'
+```
 
 #### 1. Kiali (Service Mesh UI)
-```bash
-kubectl port-forward -n istio-system svc/kiali 20001:20001
-```
-- **URL:** `http://localhost:20001`
+- **NodePort URL:** `http://<NODE-IP>:<NODE-PORT>` (Default port: 20001)
+- **LoadBalancer URL:** `http://<EXTERNAL-IP>:20001`
 
 #### 2. Grafana (Metrics Dashboards)
-```bash
-kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80
-```
-- **URL:** `http://localhost:3000`
+- **NodePort URL:** `http://<NODE-IP>:<NODE-PORT>` (Default port: 80)
+- **LoadBalancer URL:** `http://<EXTERNAL-IP>`
 - **User:** `admin` | **Password:** `prom-operator`
 
 #### 3. Prometheus (Raw Metrics)
-```bash
-kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-prometheus 9090:9090
-```
-- **URL:** `http://localhost:9090`
+- **NodePort URL:** `http://<NODE-IP>:<NODE-PORT>` (Default port: 9090)
+- **LoadBalancer URL:** `http://<EXTERNAL-IP>:9090`
 - **Credentials:** None (Open)
+
 ---
 
 ### Phase 10: Post-Install UI Configurations
 
 #### Configure Grafana (Istio Dashboards)
-1. Go to `http://localhost:3000` → **Dashboards → New → Import**.
+1. Go to the **Grafana URL** → **Dashboards → New → Import**.
 2. Import these Istio Dashboard IDs (select **Prometheus** data source):
    - **Istio Mesh:** `7639`
    - **Istio Performance:** `11829`
@@ -143,8 +161,8 @@ kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-prometheus 909
    - **Istio Workload:** `7630`
 
 #### Verify Integration
-1. **Prometheus** (`http://localhost:9090`) → **Status → Targets** → Ensure `istiod` and `istio-proxies` are **UP**.
-2. **Kiali** (`http://localhost:20001`) → **Graph** → Select `default` namespace → See mesh topology.
+1. **Prometheus** → **Status → Targets** → Ensure `istiod` and `istio-proxies` are **UP**.
+2. **Kiali** → **Graph** → Select `default` namespace → See mesh topology.
 3. **Grafana** → Check imported Istio dashboards show traffic data.
 
 ---
