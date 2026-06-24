@@ -87,16 +87,17 @@ kubectl get sc
 * If you have one (e.g., standard, gp2, managed-premium), note its name.
 * If you have none (common in bare-metal/local clusters), you must install a storage provisioner. For a quick local fix, install the local-path-provisioner:
 ```
-# 1. Add the official Helm repository
-helm repo add rancher https://charts.rancher.io
+# 1. Add the correct Helm repository
+helm repo add local-path-storage https://rancher.github.io/local-path-provisioner/
 helm repo update
 
 # 2. Install the provisioner (pointing to /var/mnt for Talos)
-helm install local-path rancher/local-path-provisioner \
+helm install local-path local-path-storage/local-path-provisioner \
   --namespace local-path-storage --create-namespace \
   --set storageClass.defaultClass=true \
   --set nodePathMap[0].node=DEFAULT_PATH_FOR_NON_LISTED_NODES \
   --set nodePathMap[0].paths='{/var/mnt/local-path}'
+
 ```
 Verify Storage Class
 ```
