@@ -153,13 +153,8 @@ Cleanup guide to completely uninstall and remove all traces of the setup.
 
 Run these in order to avoid dependency errors.
 
-### 1. Uninstall Helm Releases (ELK & Monitoring)
+### 1. Uninstall Helm Releases (Monitoring)
 ```bash
-# Uninstall ELK stack
-helm uninstall elasticsearch -n logging
-helm uninstall kibana -n logging
-helm uninstall filebeat -n logging
-
 # Uninstall Prometheus/Grafana stack
 helm uninstall monitoring -n monitoring
 
@@ -193,4 +188,4 @@ rm -rf ~/istio-*
 sudo rm /usr/local/bin/helm
 ```
 
-**Note on Storage:** Deleting the namespaces in Step 4 will automatically delete the Persistent Volume Claims (PVCs) for Elasticsearch and Prometheus. If you are using a local provisioner (like `hostpath`), you may need to manually delete the leftover folders on your node's disk (usually in `/var/lib/...` or `/opt/local-path-provisioner/...`).
+**Note on Storage:** Deleting the namespaces in Step 4 will automatically delete the Persistent Volume Claims (PVCs) for Prometheus. If you are using a local provisioner (like `hostpath`), you may need to manually delete the leftover folders on your node's disk (usually in `/var/lib/...` or `/opt/local-path-provisioner/...`).
