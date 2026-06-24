@@ -33,8 +33,19 @@ kubectl label namespace default istio-injection=enabled
 # Verify ingress gateway is running
 kubectl get pod -n istio-system
 ```
+### Phase 4: Install Prometheus & Grafana
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
 
-### Phase 4: Install Kiali
+helm install monitoring prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
+  --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
+  --set grafana.service.type=ClusterIP
+```
+
+### Phase 5: Install Kiali
 ```bash
 helm repo add kiali https://kiali.org/helm-charts
 helm repo update
@@ -45,18 +56,6 @@ helm install kiali-server kiali/kiali-server -n istio-system \
   --set login.passphrase=admin \
   --set external_services.prometheus.url=http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090 \
   --set external_services.grafana.url=http://monitoring-grafana.monitoring.svc:80
-```
-
-### Phase 5: Install Prometheus & Grafana
-```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-helm install monitoring prometheus-community/kube-prometheus-stack \
-  --namespace monitoring \
-  --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
-  --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
-  --set grafana.service.type=ClusterIP
 ```
 
 ### Phase 6: Install ELK Stack
