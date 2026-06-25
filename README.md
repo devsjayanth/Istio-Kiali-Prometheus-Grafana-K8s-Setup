@@ -48,16 +48,20 @@ helm install monitoring prometheus-community/kube-prometheus-stack \
 ```
 
 If the Grafana pod restarts during/after a reboot, manually imported UI dashboards and metrics data are lost. 
-**Fix:** Provision them via Helm with persistent volumes so they automatically recreate and retain data on pod restarts. Create a `values.yaml`:
+**Fix:** Provision them via Helm with persistent volumes so they automatically recreate and retain data on pod restarts.
+#### Check if you have Storage Class setup
 ```bash
-nano values.yaml
+kubectl get sc
 ```
-```yaml
+
+Create `values.yaml` using `openebs-hostpath` or any other PV provider so we don't accidentally wipe your raw NVMe drive for small monitoring data:
+
+```bash
+cat <<EOF > values.yaml
 grafana:
   persistence:
     enabled: true
-    storageClassName: openebs-hostpath  # Can also use 'local-nvme'
-    accessModes: ["ReadWriteOnce"]
+    storageClassName: openebs-hostpath
     size: 1Gi
   dashboards:
     istio:
@@ -72,10 +76,7 @@ prometheus:
       volumeClaimTemplate:
         spec:
           storageClassName: openebs-hostpath
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 2Gi
+          resources: { requests: { storage: 2Gi } }
 
 alertmanager:
   alertmanagerSpec:
@@ -83,10 +84,8 @@ alertmanager:
       volumeClaimTemplate:
         spec:
           storageClassName: openebs-hostpath
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 1Gi
+          resources: { requests: { storage: 1Gi } }
+EOF
 ```
 Label the monitoring namespace to allow privileged pods and hostPath volumes
 ```
