@@ -210,7 +210,266 @@ kubectl get secret -n monitoring monitoring-grafana -o jsonpath="{.data.admin-pa
 - **NodePort URL:** `http://<NODE-IP>:<NODE-PORT>` (Default port: 9093)
 - **LoadBalancer URL:** `http://<EXTERNAL-IP>:9093`
 - **Credentials:** None (Open)
-- 
+
+---
+# 🚀 Deploying & Monitoring an App in `myspace-prod`
+
+Here's how to deploy your application in a new namespace and integrate it with Istio, Kiali, and your observability stack.
+
+---
+
+## Step 1: Create Namespace & Enable Istio Injection
+
+```bash
+# 1. Create the namespace
+kubectl create namespace myspace-prod
+
+# 2. Enable Istio sidecar injection (this injects Envoy proxies into all pods)
+kubectl label namespace myspace-prod istio-injection=enabled
+
+# 3. Label for Pod Security (if your app needs privileged access)
+kubectl label namespace myspace-prod \
+  pod-security.kubernetes.io/enforce=privileged \
+  pod-security.kubernetes.io/warn=privileged \
+  pod-security.kubernetes.io/audit=privileged
+```
+
+---
+
+## Step 2: Deploy Your Application
+
+Deploy your app using standard Kubernetes manifests. The Istio sidecar will be automatically injected.
+
+**Example deployment (`myapp-deployment.yaml`):**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+  namespace: myspace-prod
+  labels:
+    app: myapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: myapp
+        image: nginx:latest  # Replace with your app image
+        ports:
+        - containerPort: 80
+          name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp
+  namespace: myspace-prod
+  labels:
+    app: myapp
+spec:
+  selector:
+    app: myapp
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+```
+
+**Apply it:**
+```bash
+kubectl apply -f myapp-deployment.yaml
+```
+
+**Verify the sidecar is injected:**
+```bash
+kubectl get pods -n myspace-prod
+# You should see 2/2 READY (app container + istio-proxy sidecar)
+```
+
+---
+
+## Step 3: Create Istio Gateway & VirtualService (Optional)
+
+If you want external access to your app via the Istio Ingress Gateway:
+
+```bash
+cat <<EOF | kubectl apply -n myspace-prod -f -
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: myapp-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "myapp.local"  # Replace with your domain
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: myapp-vs
+spec:
+  hosts:
+  - "myapp.local"
+  gateways:
+  - myapp-gateway
+  http:
+  - route:
+    - destination:
+        host: myapp
+        port:
+          number: 80
+EOF
+```
+
+---
+
+## Step 4: Monitor with Prometheus & Grafana
+
+### Option A: If Your App Exposes `/metrics` (Prometheus Format)
+
+Create a `ServiceMonitor` to tell Prometheus to scrape your app's metrics:
+
+```bash
+cat <<EOF | kubectl apply -n myspace-prod -f -
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: myapp-monitor
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: myapp
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 15s
+EOF
+```
+
+### Option B: View Istio Metrics (Automatic)
+
+Istio automatically generates metrics for all traffic flowing through the sidecar. You don't need to do anything special—just ensure traffic is flowing.
+
+**Generate test traffic:**
+```bash
+kubectl port-forward -n myspace-prod svc/myapp 8080:80 &
+PF_PID=$!
+sleep 2
+for i in {1..20}; do curl -s http://localhost:8080 > /dev/null; done
+kill $PF_PID
+```
+
+---
+
+## Step 5: View in Kiali
+
+1. Open **Kiali** (`http://<NODE-IP>:<KIALI_PORT>`)
+2. In the top-left dropdown, select **Namespace: myspace-prod**
+3. Go to **Graph** → You'll see your app's service mesh topology
+4. Go to **Workloads** → Click on `myapp` → See detailed metrics (request rate, error rate, duration)
+5. Go to **Services** → Click on `myapp` → See inbound/outbound traffic metrics
+
+---
+
+## Step 6: View in Grafana
+
+### Using the dotdc Kubernetes Dashboards (Already Installed)
+
+1. Open **Grafana** → **Dashboards → Browse**
+2. Open **"Kubernetes / Views / Namespaces"**
+3. At the top, set:
+   - **Datasource:** `Prometheus`
+   - **Namespace:** `myspace-prod`
+4. You'll see CPU, memory, network, and pod metrics for your namespace
+
+### Using Istio Dashboards
+
+1. Open **"Istio Workload Dashboard"**
+2. Set variables:
+   - **Datasource:** `Prometheus`
+   - **Namespace:** `myspace-prod`
+   - **Workload:** `myapp`
+3. You'll see request rate, success rate, and latency for your app
+
+### Query Your App's Custom Metrics (If You Have `/metrics`)
+
+1. Go to **Explore** in Grafana
+2. Select **Prometheus** as datasource
+3. Use PromQL to query your app's metrics:
+   ```promql
+   rate(http_requests_total{namespace="myspace-prod", app="myapp"}[5m])
+   ```
+
+---
+
+## Step 7: Verify Everything is Working
+
+```bash
+# 1. Check pods have sidecars
+kubectl get pods -n myspace-prod -o wide
+
+# 2. Check Prometheus targets
+# Go to Prometheus UI → Status → Targets → Search for "myapp" or "istio-proxies"
+
+# 3. Check Kiali sees the workload
+# Go to Kiali → Workloads → Select "myspace-prod" namespace
+
+# 4. Generate traffic and check Grafana
+kubectl port-forward -n myspace-prod svc/myapp 8080:80
+curl http://localhost:8080
+# Then check Grafana dashboards
+```
+
+---
+
+## Quick Reference: Common Commands
+
+```bash
+# View logs (app + sidecar)
+kubectl logs -n myspace-prod deployment/myapp -c myapp
+kubectl logs -n myspace-prod deployment/myapp -c istio-proxy
+
+# Exec into the sidecar
+kubectl exec -it -n myspace-prod deployment/myapp -c istio-proxy -- /bin/sh
+
+# View Istio proxy config
+kubectl exec -n myspace-prod deployment/myapp -c istio-proxy -- pilot-agent request GET config_dump
+
+# Disable sidecar injection (if needed)
+kubectl label namespace myspace-prod istio-injection-
+kubectl rollout restart deployment myapp -n myspace-prod
+```
+
+---
+
+## Troubleshooting
+
+**Issue: Kiali doesn't show my namespace**
+- Ensure traffic is flowing through the sidecar (check `kubectl get pods -n myspace-prod` shows 2/2 READY)
+
+**Issue: Grafana shows "No data" for my namespace**
+- Check Prometheus targets: `http://<PROMETHEUS-URL>/targets`
+- Verify the `ServiceMonitor` is created: `kubectl get servicemonitor -n myspace-prod`
+
+**Issue: App not accessible via Istio Gateway**
+- Check Gateway/VirtualService: `kubectl get gateway,virtualservice -n myspace-prod`
+- Verify the host matches what you're sending in the HTTP request
+
 ---
 # Uninstallation
 Cleanup guide to completely uninstall and remove all traces of the setup. 
