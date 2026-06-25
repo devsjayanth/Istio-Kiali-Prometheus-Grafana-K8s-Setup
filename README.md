@@ -63,12 +63,40 @@ grafana:
     enabled: true
     storageClassName: openebs-hostpath
     size: 1Gi
+  
+  # Fixes the issue where downloaded dashboards don't show up in the UI
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: 'downloaded-dashboards'
+        orgId: 1
+        folder: 'Istio & K8s'
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
   dashboards:
-    istio:
-      mesh: { gnetId: 7639, revision: 1, datasource: Prometheus }
-      performance: { gnetId: 11829, revision: 1, datasource: Prometheus }
-      service: { gnetId: 7636, revision: 1, datasource: Prometheus }
-      workload: { gnetId: 7630, revision: 1, datasource: Prometheus }
+    default:
+      # Istio Official
+      istio-mesh: { gnetId: 7639, revision: 1, datasource: Prometheus }
+      istio-performance: { gnetId: 11829, revision: 1, datasource: Prometheus }
+      istio-service: { gnetId: 7636, revision: 1, datasource: Prometheus }
+      istio-workload: { gnetId: 7630, revision: 1, datasource: Prometheus }
+      # K8s (dotdc)
+      k8s-views-global: { gnetId: 15757, revision: 36, datasource: Prometheus }
+      k8s-views-nodes: { gnetId: 15758, revision: 32, datasource: Prometheus }
+      k8s-views-namespaces: { gnetId: 15759, revision: 28, datasource: Prometheus }
+      k8s-views-pods: { gnetId: 15760, revision: 27, datasource: Prometheus }
+      k8s-system-api-server: { gnetId: 15761, revision: 17, datasource: Prometheus }
+      k8s-system-coredns: { gnetId: 15762, revision: 17, datasource: Prometheus }
+      node-exporter-full: { gnetId: 1860, revision: 33, datasource: Prometheus }
+      # ArgoCD (Raw JSON from GitHub)
+      argocd:
+        url: "https://raw.githubusercontent.com/argoproj/argo-cd/master/examples/dashboard.json"
+        datasource: Prometheus
 
 prometheus:
   prometheusSpec:
@@ -216,26 +244,7 @@ kubectl get secret -n monitoring monitoring-grafana -o jsonpath="{.data.admin-pa
 - **NodePort URL:** `http://<NODE-IP>:<NODE-PORT>` (Default port: 9093)
 - **LoadBalancer URL:** `http://<EXTERNAL-IP>:9093`
 - **Credentials:** None (Open)
-
----
-
-### Phase 10: Post-Install UI Configurations
-
-#### Configure Grafana (Istio Dashboards)
-*Note: Because we provisioned these in the `values.yaml`, they should already be imported. If not, you can manually import them:*
-1. Go to the **Grafana URL** → **Dashboards → New → Import**.
-2. Import these Istio Dashboard IDs (select **Prometheus** data source):
-   - **Istio Mesh:** `7639`
-   - **Istio Performance:** `11829`
-   - **Istio Service:** `7636`
-   - **Istio Workload:** `7630`
-
-#### Verify Integration
-1. **Prometheus** → **Status → Targets** → Ensure `istiod` and `istio-proxies` are **UP**.
-2. **Kiali** → **Graph** → Select `default` namespace → See mesh topology.
-3. **Grafana** → Check imported Istio dashboards show traffic data.
-4. **Alertmanager** → **Alerts** tab → Verify active alerts and silences are displaying correctly.
-
+- 
 ---
 # Uninstallation
 Cleanup guide to completely uninstall and remove all traces of the setup. 
